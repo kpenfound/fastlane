@@ -16,15 +16,28 @@ module PEM
         if existing_certificate
           remaining_days = (existing_certificate.expires - Time.now) / 60 / 60 / 24
           UI.message "Existing push notification profile '#{existing_certificate.owner_name}' is valid for #{remaining_days.round} more days."
-          if remaining_days > 30
-            if PEM.config[:force]
-              UI.success "You already have an existing push certificate, but a new one will be created since the --force option has been set."
-            else
-              UI.success "You already have a push certificate, which is active for more than 30 more days. No need to create a new one"
-              UI.success "If you still want to create a new one, use the --force option when running PEM."
-              return false
+          if PEM.config[:download]
+            # Download the certificate
+            UI.message "Downloading the existing push notification profile '#{existing_certificate.owner_name}'."
+            cer_data = existing_certificate.download_raw
+            cer_path = File.join(PEM.config[:output_path], "#{PEM.config[:app_identifier]}.cer")
+            File.write(cer_path, cer_data)
+            UI.success "Certificate downloaded to #{cer_path}"
+            return false
+          else
+            if remaining_days > 30
+              if PEM.config[:force]
+                UI.success "You already have an existing push certificate, but a new one will be created since the --force option has been set."
+              else
+                UI.success "You already have a push certificate, which is active for more than 30 more days. No need to create a new one"
+                UI.success "If you still want to create a new one, use the --force option when running PEM."
+                return false
+              end
             end
           end
+        elsif PEM.config[:download]
+          # Dont create a pem if we specified --download
+          return false
         end
 
         return create_certificate
